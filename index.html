@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Игра для Мини Бро</title>
+    <title>Поймай звёзды для Мини Бро</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #ffe0f0;
+            background: #e8e0f0;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -17,239 +17,167 @@
             touch-action: manipulation;
             user-select: none;
         }
-        canvas { 
-            background: #fff; 
-            border: 3px solid #e91e8c;
-            border-radius: 10px;
-            display: none;
-            max-width: 100%;
-        }
+        canvas { background: #fff; border: 3px solid #9c27b0; border-radius: 10px; display: none; max-width: 100%; }
         #startScreen, #endScreen {
-            text-align: center;
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(233,30,140,0.3);
-            max-width: 350px;
+            text-align: center; background: white; padding: 30px; border-radius: 20px;
+            box-shadow: 0 0 30px rgba(156,39,176,0.3); max-width: 350px;
         }
         #endScreen { display: none; }
         button {
-            background: #e91e8c;
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
+            background: #9c27b0; color: white; border: none; padding: 15px 40px;
+            font-size: 20px; border-radius: 50px; cursor: pointer; margin-top: 20px; width: 100%;
         }
-        .bro-icon { font-size: 50px; animation: pulse 1.5s infinite; }
+        .star-icon { font-size: 50px; animation: pulse 1.5s infinite; }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.3); }
         }
         p { font-size: 18px; color: #555; margin: 8px 0; }
-        h2 { color: #e91e8c; margin-bottom: 15px; }
+        h2 { color: #9c27b0; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
-    <div id="startScreen">
-        <div class="bro-icon">🌸</div>
-        <h2>Для Мини Бро</h2>
-        <p>Прыгай через препятствия!<br>Тапай по экрану 📱</p>
-        <p style="font-size:14px; color:#888;">Набери 40 очков, там сюрприз 😉</p>
-        <button id="startBtn">▶ Играть</button>
-    </div>
+<div id="startScreen">
+    <div class="star-icon">🧺</div>
+    <h2>Игра для Мини Бро</h2>
+    <p>Лови звёздочки ⭐<br>Уворачивайся от тучек ☁️</p>
+    <p style="font-size:14px; color:#888;">Двигай пальцем по экрану<br>Собери 30 звёзд — там сюрприз 😉</p>
+    <button id="startBtn">▶ Играть</button>
+</div>
 
-    <div id="endScreen">
-        <div class="bro-icon">🌸</div>
-        <h2 id="endTitle">Мини Бро, ты супер!</h2>
-        <p id="endMsg">Ты справилась!</p>
-        <p>💖 Ты самая классная подруга</p>
-        <p>✨ С тобой всегда душевно</p>
-        <p>🤗 Ценю нашу дружбу</p>
-        <p>🌸 Ты как цветочек — яркая и тёплая</p>
-        <p>💋 Спасибо, что ты есть!</p>
-        <button id="restartBtn">🔄 Ещё разок</button>
-    </div>
+<div id="endScreen">
+    <div class="star-icon">⭐</div>
+    <h2 id="endTitle">Мини Бро, ты супер!</h2>
+    <p id="endMsg">Ты собрала все звёзды!</p>
+    <p>🌸 Ты самая классная подруга</p>
+    <p>✨ С тобой всегда душевно</p>
+    <p>🤗 Ценю нашу дружбу</p>
+    <p>💜 Спасибо, что ты есть!</p>
+    <button id="restartBtn">🔄 Ещё разок</button>
+</div>
 
-    <canvas id="gameCanvas" width="360" height="280"></canvas>
+<canvas id="gameCanvas" width="360" height="500"></canvas>
 
-    <script>
-        (function() {
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            const W = canvas.width, H = canvas.height;
-            
-            const startScreen = document.getElementById('startScreen');
-            const endScreen = document.getElementById('endScreen');
-            const endTitle = document.getElementById('endTitle');
-            const endMsg = document.getElementById('endMsg');
+<script>
+(function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    
+    const startScreen = document.getElementById('startScreen');
+    const endScreen = document.getElementById('endScreen');
+    const endTitle = document.getElementById('endTitle');
+    const endMsg = document.getElementById('endMsg');
 
-            let player, obstacles = [], score, gameRunning, winScore = 40;
-            let frame = 0, gameEnded = false;
-            const GROUND_Y = H - 50;
+    let basket, stars = [], clouds = [], score, gameRunning, winScore = 30;
+    let gameEnded = false;
 
-            class Player {
-                constructor() {
-                    this.w = 30; this.h = 30;
-                    this.x = 70; 
-                    this.y = GROUND_Y - this.h;
-                    this.vy = 0;
-                    this.grounded = true;
-                }
-                jump() {
-                    if (this.grounded && gameRunning) {
-                        this.vy = -9;
-                        this.grounded = false;
-                    }
-                }
-                update() {
-                    this.y += this.vy;
-                    this.vy += 0.6;
-                    if (this.y >= GROUND_Y - this.h) {
-                        this.y = GROUND_Y - this.h;
-                        this.vy = 0;
-                        this.grounded = true;
-                    }
-                }
-                draw() {
-                    ctx.font = '36px Arial';
-                    ctx.fillText('🌸', this.x - 5, this.y + this.h - 5);
-                }
+    class Basket {
+        constructor() { this.w = 60; this.h = 40; this.x = W/2 - 30; this.y = H - 70; }
+        draw() {
+            ctx.font = '40px Arial';
+            ctx.fillText('🧺', this.x, this.y + this.h);
+        }
+    }
+
+    class Star {
+        constructor() {
+            this.x = Math.random() * (W - 20);
+            this.y = -30;
+            this.speed = 2 + Math.random() * 2;
+        }
+        update() { this.y += this.speed; }
+        draw() { ctx.font = '24px Arial'; ctx.fillText('⭐', this.x, this.y); }
+    }
+
+    class Cloud {
+        constructor() {
+            this.x = Math.random() * (W - 20);
+            this.y = -30;
+            this.speed = 2 + Math.random() * 2;
+        }
+        update() { this.y += this.speed; }
+        draw() { ctx.font = '24px Arial'; ctx.fillText('☁️', this.x, this.y); }
+    }
+
+    function startGame() {
+        startScreen.style.display = 'none';
+        endScreen.style.display = 'none';
+        canvas.style.display = 'block';
+        basket = new Basket();
+        stars = []; clouds = []; score = 0;
+        gameRunning = true; gameEnded = false;
+    }
+
+    function endGame(won) {
+        if (gameEnded) return;
+        gameEnded = true; gameRunning = false;
+        canvas.style.display = 'none';
+        endScreen.style.display = 'block';
+        if (won) {
+            endTitle.innerText = 'Мини Бро, ты супер!';
+            endMsg.innerText = 'Ты собрала все звёзды! ⭐';
+        } else {
+            endTitle.innerText = 'Почти!';
+            endMsg.innerText = 'Давай ещё разок 💪';
+        }
+    }
+
+    function gameLoop() {
+        if (!gameRunning) return;
+        ctx.clearRect(0, 0, W, H);
+
+        basket.draw();
+
+        // Спавн
+        if (Math.random() < 0.03) stars.push(new Star());
+        if (Math.random() < 0.015) clouds.push(new Cloud());
+
+        // Звёзды
+        for (let i = stars.length-1; i >= 0; i--) {
+            stars[i].update(); stars[i].draw();
+            if (stars[i].y > H) { stars.splice(i,1); continue; }
+            if (stars[i].x > basket.x && stars[i].x < basket.x+basket.w &&
+                stars[i].y > basket.y && stars[i].y < basket.y+basket.h) {
+                stars.splice(i,1); score++;
             }
+        }
 
-            class Obstacle {
-                constructor(speed) {
-                    this.w = 16;
-                    this.h = 25 + Math.random() * 20;
-                    this.x = W;
-                    this.y = GROUND_Y - this.h;
-                    this.speed = speed;
-                    this.passed = false;
-                }
-                update() { this.x -= this.speed; }
-                draw() {
-                    ctx.fillStyle = '#e91e8c';
-                    ctx.fillRect(this.x, this.y, this.w, this.h);
-                    ctx.fillStyle = '#ad1457';
-                    for(let i=0; i<4; i++) {
-                        ctx.fillRect(this.x-2, this.y + 5 + i*5, 4, 2);
-                        ctx.fillRect(this.x+this.w-2, this.y + 5 + i*5, 4, 2);
-                    }
-                }
+        // Тучки
+        for (let i = clouds.length-1; i >= 0; i--) {
+            clouds[i].update(); clouds[i].draw();
+            if (clouds[i].y > H) { clouds.splice(i,1); continue; }
+            if (clouds[i].x > basket.x && clouds[i].x < basket.x+basket.w &&
+                clouds[i].y > basket.y && clouds[i].y < basket.y+basket.h) {
+                endGame(false); return;
             }
+        }
 
-            function collision(p, c) {
-                return (
-                    p.x < c.x + c.w &&
-                    p.x + p.w > c.x &&
-                    p.y < c.y + c.h &&
-                    p.y + p.h > c.y
-                );
-            }
+        ctx.fillStyle = '#9c27b0'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`⭐ ${score}/${winScore}`, 15, 30);
 
-            function startGame() {
-                startScreen.style.display = 'none';
-                endScreen.style.display = 'none';
-                canvas.style.display = 'block';
-                player = new Player();
-                obstacles = [];
-                score = 0;
-                gameRunning = true;
-                gameEnded = false;
-                frame = 0;
-            }
+        if (score >= winScore) { endGame(true); return; }
+        requestAnimationFrame(gameLoop);
+    }
 
-            function endGame(won) {
-                if (gameEnded) return;
-                gameEnded = true;
-                gameRunning = false;
-                canvas.style.display = 'none';
-                endScreen.style.display = 'block';
-                if (won) {
-                    endTitle.innerText = 'Мини Бро, ты супер!';
-                    endMsg.innerText = 'Ты справилась! 🌸';
-                } else {
-                    endTitle.innerText = 'Почти!';
-                    endMsg.innerText = 'Давай ещё разок 💪';
-                }
-            }
+    // Управление пальцем
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        let touch = e.touches[0];
+        let rect = canvas.getBoundingClientRect();
+        let x = touch.clientX - rect.left;
+        if (basket && gameRunning) basket.x = Math.max(0, Math.min(W - basket.w, x - basket.w/2));
+    });
+    canvas.addEventListener('mousemove', e => {
+        let rect = canvas.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        if (basket && gameRunning) basket.x = Math.max(0, Math.min(W - basket.w, x - basket.w/2));
+    });
 
-            function gameLoop() {
-                if (!gameRunning) return;
-                frame++;
-                ctx.clearRect(0, 0, W, H);
-
-                ctx.fillStyle = '#F5F5F5';
-                ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-                ctx.fillStyle = '#E0E0E0';
-                ctx.fillRect(0, GROUND_Y, W, 2);
-
-                player.update();
-                player.draw();
-
-                if (frame % 65 === 0 && obstacles.length < 2) {
-                    obstacles.push(new Obstacle(4 + score * 0.1));
-                }
-
-                for (let i=obstacles.length-1; i>=0; i--) {
-                    let c = obstacles[i];
-                    c.update();
-                    c.draw();
-
-                    if (!gameEnded && collision(player, c)) {
-                        endGame(false);
-                        return;
-                    }
-
-                    if (!c.passed && c.x + c.w < player.x) {
-                        c.passed = true;
-                        score++;
-                    }
-
-                    if (c.x < -50) obstacles.splice(i,1);
-                }
-
-                ctx.fillStyle = '#e91e8c';
-                ctx.font = 'bold 22px Arial';
-                ctx.fillText(`🌸 ${score}/${winScore}`, 15, 30);
-
-                if (score >= winScore && !gameEnded) {
-                    endGame(true);
-                    return;
-                }
-
-                requestAnimationFrame(gameLoop);
-            }
-
-            document.getElementById('startBtn').onclick = () => {
-                startGame();
-                requestAnimationFrame(gameLoop);
-            };
-
-            document.getElementById('restartBtn').onclick = () => {
-                startGame();
-                requestAnimationFrame(gameLoop);
-            };
-
-            canvas.addEventListener('touchstart', e => {
-                e.preventDefault();
-                if (player) player.jump();
-            });
-            canvas.addEventListener('mousedown', e => {
-                e.preventDefault();
-                if (player) player.jump();
-            });
-            document.addEventListener('keydown', e => {
-                if ((e.code === 'Space' || e.code === 'ArrowUp') && player) {
-                    e.preventDefault();
-                    player.jump();
-                }
-            });
-        })();
-    </script>
+    document.getElementById('startBtn').onclick = () => { startGame(); requestAnimationFrame(gameLoop); };
+    document.getElementById('restartBtn').onclick = () => { startGame(); requestAnimationFrame(gameLoop); };
+})();
+</script>
 </body>
 </html>
