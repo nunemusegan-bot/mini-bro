@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Игра для Мини Бро</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #e8f5e9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        canvas { 
+            background: #fff; 
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            display: none;
+            max-width: 100%;
+        }
+        #startScreen, #endScreen {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(76,175,80,0.3);
+            max-width: 350px;
+        }
+        #endScreen { display: none; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .bro-icon { font-size: 50px; animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+        p { font-size: 18px; color: #555; margin: 8px 0; }
+        h2 { color: #4CAF50; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="startScreen">
+        <div class="bro-icon">🔥</div>
+        <h2>Игра для Мини Бро</h2>
+        <p>Прыгай через препятствия!<br>Тапай по экрану 📱</p>
+        <p style="font-size:14px; color:#888;">Набери 40 очков, там сюрприз 😉</p>
+        <button id="startBtn">▶ Играть</button>
+    </div>
+
+    <div id="endScreen">
+        <div class="bro-icon">🔥</div>
+        <h2 id="endTitle">Мини Бро, ты легенда!</h2>
+        <p id="endMsg">Ты справилась!</p>
+        <p>💪 Ты самая крутая и верная</p>
+        <p>😎 С тобой всегда весело</p>
+        <p>🤜🤛 Ты настоящий друг</p>
+        <p>🔥 Спасибо, что ты есть!</p>
+        <button id="restartBtn">🔄 Ещё разок</button>
+    </div>
+
+    <canvas id="gameCanvas" width="360" height="280"></canvas>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            
+            const startScreen = document.getElementById('startScreen');
+            const endScreen = document.getElementById('endScreen');
+            const endTitle = document.getElementById('endTitle');
+            const endMsg = document.getElementById('endMsg');
+
+            let player, obstacles = [], score, gameRunning, winScore = 40;
+            let frame = 0, gameEnded = false;
+            const GROUND_Y = H - 50;
+
+            class Player {
+                constructor() {
+                    this.w = 30; this.h = 30;
+                    this.x = 70; 
+                    this.y = GROUND_Y - this.h;
+                    this.vy = 0;
+                    this.grounded = true;
+                }
+                jump() {
+                    if (this.grounded && gameRunning) {
+                        this.vy = -9;
+                        this.grounded = false;
+                    }
+                }
+                update() {
+                    this.y += this.vy;
+                    this.vy += 0.6;
+                    if (this.y >= GROUND_Y - this.h) {
+                        this.y = GROUND_Y - this.h;
+                        this.vy = 0;
+                        this.grounded = true;
+                    }
+                }
+                draw() {
+                    ctx.font = '36px Arial';
+                    ctx.fillText('🔥', this.x - 5, this.y + this.h - 5);
+                }
+            }
+
+            class Obstacle {
+                constructor(speed) {
+                    this.w = 16;
+                    this.h = 25 + Math.random() * 20;
+                    this.x = W;
+                    this.y = GROUND_Y - this.h;
+                    this.speed = speed;
+                    this.passed = false;
+                }
+                update() { this.x -= this.speed; }
+                draw() {
+                    ctx.fillStyle = '#FF5722';
+                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                    ctx.fillStyle = '#BF360C';
+                    for(let i=0; i<4; i++) {
+                        ctx.fillRect(this.x-2, this.y + 5 + i*5, 4, 2);
+                        ctx.fillRect(this.x+this.w-2, this.y + 5 + i*5, 4, 2);
+                    }
+                }
+            }
+
+            function collision(p, c) {
+                return (
+                    p.x < c.x + c.w &&
+                    p.x + p.w > c.x &&
+                    p.y < c.y + c.h &&
+                    p.y + p.h > c.y
+                );
+            }
+
+            function startGame() {
+                startScreen.style.display = 'none';
+                endScreen.style.display = 'none';
+                canvas.style.display = 'block';
+                player = new Player();
+                obstacles = [];
+                score = 0;
+                gameRunning = true;
+                gameEnded = false;
+                frame = 0;
+            }
+
+            function endGame(won) {
+                if (gameEnded) return;
+                gameEnded = true;
+                gameRunning = false;
+                canvas.style.display = 'none';
+                endScreen.style.display = 'block';
+                if (won) {
+                    endTitle.innerText = 'Мини Бро, ты легенда!';
+                    endMsg.innerText = 'Ты справилась! 🔥';
+                } else {
+                    endTitle.innerText = 'Почти!';
+                    endMsg.innerText = 'Давай ещё разок 💪';
+                }
+            }
+
+            function gameLoop() {
+                if (!gameRunning) return;
+                frame++;
+                ctx.clearRect(0, 0, W, H);
+
+                ctx.fillStyle = '#F5F5F5';
+                ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+                ctx.fillStyle = '#E0E0E0';
+                ctx.fillRect(0, GROUND_Y, W, 2);
+
+                player.update();
+                player.draw();
+
+                if (frame % 65 === 0 && obstacles.length < 2) {
+                    obstacles.push(new Obstacle(4 + score * 0.1));
+                }
+
+                for (let i=obstacles.length-1; i>=0; i--) {
+                    let c = obstacles[i];
+                    c.update();
+                    c.draw();
+
+                    if (!gameEnded && collision(player, c)) {
+                        endGame(false);
+                        return;
+                    }
+
+                    if (!c.passed && c.x + c.w < player.x) {
+                        c.passed = true;
+                        score++;
+                    }
+
+                    if (c.x < -50) obstacles.splice(i,1);
+                }
+
+                ctx.fillStyle = '#4CAF50';
+                ctx.font = 'bold 22px Arial';
+                ctx.fillText(`🔥 ${score}/${winScore}`, 15, 30);
+
+                if (score >= winScore && !gameEnded) {
+                    endGame(true);
+                    return;
+                }
+
+                requestAnimationFrame(gameLoop);
+            }
+
+            document.getElementById('startBtn').onclick = () => {
+                startGame();
+                requestAnimationFrame(gameLoop);
+            };
+
+            document.getElementById('restartBtn').onclick = () => {
+                startGame();
+                requestAnimationFrame(gameLoop);
+            };
+
+            canvas.addEventListener('touchstart', e => {
+                e.preventDefault();
+                if (player) player.jump();
+            });
+            canvas.addEventListener('mousedown', e => {
+                e.preventDefault();
+                if (player) player.jump();
+            });
+            document.addEventListener('keydown', e => {
+                if ((e.code === 'Space' || e.code === 'ArrowUp') && player) {
+                    e.preventDefault();
+                    player.jump();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
