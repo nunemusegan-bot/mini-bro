@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Поймай звёзды для Мини Бро</title>
+    <title>Мини Бро: Полёт</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #e8e0f0;
+            background: #1a1a2e;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -17,47 +17,49 @@
             touch-action: manipulation;
             user-select: none;
         }
-        canvas { background: #fff; border: 3px solid #9c27b0; border-radius: 10px; display: none; max-width: 100%; }
+        canvas { background: #16213e; border: 2px solid #e94560; border-radius: 10px; display: none; max-width: 100%; }
         #startScreen, #endScreen {
-            text-align: center; background: white; padding: 30px; border-radius: 20px;
-            box-shadow: 0 0 30px rgba(156,39,176,0.3); max-width: 350px;
+            text-align: center; background: #0f3460; color: white; padding: 30px; border-radius: 20px;
+            box-shadow: 0 0 30px rgba(233,69,96,0.5); max-width: 350px;
         }
         #endScreen { display: none; }
         button {
-            background: #9c27b0; color: white; border: none; padding: 15px 40px;
+            background: #e94560; color: white; border: none; padding: 15px 40px;
             font-size: 20px; border-radius: 50px; cursor: pointer; margin-top: 20px; width: 100%;
         }
-        .star-icon { font-size: 50px; animation: pulse 1.5s infinite; }
+        button:active { transform: scale(0.95); }
+        .icon { font-size: 50px; animation: pulse 1.5s infinite; }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.3); }
         }
-        p { font-size: 18px; color: #555; margin: 8px 0; }
-        h2 { color: #9c27b0; margin-bottom: 15px; }
+        p { font-size: 18px; color: #ddd; margin: 8px 0; }
+        h2 { color: #e94560; margin-bottom: 15px; }
+        .small { font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
 
 <div id="startScreen">
-    <div class="star-icon">🧺</div>
-    <h2>Игра для Мини Бро</h2>
-    <p>Лови звёздочки ⭐<br>Уворачивайся от тучек ☁️</p>
-    <p style="font-size:14px; color:#888;">Двигай пальцем по экрану<br>Собери 30 звёзд — там сюрприз 😉</p>
-    <button id="startBtn">▶ Играть</button>
+    <div class="icon">🚀</div>
+    <h2>Мини Бро: Космический полёт</h2>
+    <p>Лети к звёздам ⭐<br>Уклоняйся от астероидов ☄️</p>
+    <p class="small">Нажимай на экран (или пробел)<br>Собери 20 звёзд, чтобы победить! 😉</p>
+    <button id="startBtn">▶ Старт</button>
 </div>
 
 <div id="endScreen">
-    <div class="star-icon">⭐</div>
-    <h2 id="endTitle">Мини Бро, ты супер!</h2>
-    <p id="endMsg">Ты собрала все звёзды!</p>
-    <p>🌸 Ты самая классная подруга</p>
-    <p>✨ С тобой всегда душевно</p>
-    <p>🤗 Ценю нашу дружбу</p>
-    <p>💜 Спасибо, что ты есть!</p>
-    <button id="restartBtn">🔄 Ещё разок</button>
+    <div class="icon">🏆</div>
+    <h2 id="endTitle">Ты покорила космос!</h2>
+    <p id="endMsg"></p>
+    <p>🌟 Ты самая классная подруга</p>
+    <p>✨ С тобой всегда весело и легко</p>
+    <p>🤗 Ты делаешь мою жизнь лучше</p>
+    <p>💖 Спасибо, что ты есть!</p>
+    <button id="restartBtn">🔄 Ещё раз</button>
 </div>
 
-<canvas id="gameCanvas" width="360" height="500"></canvas>
+<canvas id="gameCanvas" width="360" height="600"></canvas>
 
 <script>
 (function() {
@@ -70,44 +72,62 @@
     const endTitle = document.getElementById('endTitle');
     const endMsg = document.getElementById('endMsg');
 
-    let basket, stars = [], clouds = [], score, gameRunning, winScore = 30;
+    let rocket, stars = [], asteroids = [], score, gameRunning, winScore = 20;
     let gameEnded = false;
+    let frame = 0;
 
-    class Basket {
-        constructor() { this.w = 60; this.h = 40; this.x = W/2 - 30; this.y = H - 70; }
+    class Rocket {
+        constructor() {
+            this.x = 80;
+            this.y = H / 2;
+            this.vy = 0;
+            this.size = 30;
+        }
+        flap() {
+            if (gameRunning) this.vy = -6;
+        }
+        update() {
+            this.y += this.vy;
+            this.vy += 0.4;
+            if (this.y < 0) this.y = 0;
+            if (this.y + this.size > H) this.y = H - this.size;
+        }
         draw() {
-            ctx.font = '40px Arial';
-            ctx.fillText('🧺', this.x, this.y + this.h);
+            ctx.font = `${this.size}px Arial`;
+            ctx.fillText('🚀', this.x - this.size/2, this.y + this.size/2);
         }
     }
 
     class Star {
         constructor() {
-            this.x = Math.random() * (W - 20);
-            this.y = -30;
-            this.speed = 2 + Math.random() * 2;
+            this.x = W;
+            this.y = Math.random() * (H - 100) + 50;
+            this.speed = 3;
+            this.size = 25;
+            this.passed = false;
         }
-        update() { this.y += this.speed; }
-        draw() { ctx.font = '24px Arial'; ctx.fillText('⭐', this.x, this.y); }
+        update() { this.x -= this.speed; }
+        draw() { ctx.font = `${this.size}px Arial`; ctx.fillText('⭐', this.x, this.y); }
     }
 
-    class Cloud {
+    class Asteroid {
         constructor() {
-            this.x = Math.random() * (W - 20);
-            this.y = -30;
-            this.speed = 2 + Math.random() * 2;
+            this.x = W;
+            this.y = Math.random() * (H - 100) + 50;
+            this.speed = 3;
+            this.size = 30;
         }
-        update() { this.y += this.speed; }
-        draw() { ctx.font = '24px Arial'; ctx.fillText('☁️', this.x, this.y); }
+        update() { this.x -= this.speed; }
+        draw() { ctx.font = `${this.size}px Arial`; ctx.fillText('☄️', this.x, this.y); }
     }
 
     function startGame() {
         startScreen.style.display = 'none';
         endScreen.style.display = 'none';
         canvas.style.display = 'block';
-        basket = new Basket();
-        stars = []; clouds = []; score = 0;
-        gameRunning = true; gameEnded = false;
+        rocket = new Rocket();
+        stars = []; asteroids = []; score = 0;
+        gameRunning = true; gameEnded = false; frame = 0;
     }
 
     function endGame(won) {
@@ -116,63 +136,70 @@
         canvas.style.display = 'none';
         endScreen.style.display = 'block';
         if (won) {
-            endTitle.innerText = 'Мини Бро, ты супер!';
-            endMsg.innerText = 'Ты собрала все звёзды! ⭐';
+            endTitle.innerText = 'Ты покорила космос!';
+            endMsg.innerText = `Ты собрала ${score} звёзд! 🚀`;
         } else {
-            endTitle.innerText = 'Почти!';
-            endMsg.innerText = 'Давай ещё разок 💪';
+            endTitle.innerText = 'Крушение!';
+            endMsg.innerText = `Ты набрала ${score} звёзд. Попробуй ещё раз!`;
         }
     }
 
     function gameLoop() {
         if (!gameRunning) return;
+        frame++;
         ctx.clearRect(0, 0, W, H);
 
-        basket.draw();
+        // Звёздный фон
+        ctx.fillStyle = 'white';
+        for(let i=0; i<20; i++) {
+            let x = (frame * (i%3+1) + i*20) % W;
+            let y = (i*25 + frame) % H;
+            ctx.fillRect(x, y, 2, 2);
+        }
 
-        // Спавн
-        if (Math.random() < 0.03) stars.push(new Star());
-        if (Math.random() < 0.015) clouds.push(new Cloud());
+        rocket.update();
+        rocket.draw();
+
+        // Спавн объектов
+        if (frame % 50 === 0) {
+            if (Math.random() < 0.7) stars.push(new Star());
+            else asteroids.push(new Asteroid());
+        }
 
         // Звёзды
         for (let i = stars.length-1; i >= 0; i--) {
             stars[i].update(); stars[i].draw();
-            if (stars[i].y > H) { stars.splice(i,1); continue; }
-            if (stars[i].x > basket.x && stars[i].x < basket.x+basket.w &&
-                stars[i].y > basket.y && stars[i].y < basket.y+basket.h) {
-                stars.splice(i,1); score++;
+            if (stars[i].x < -30) { stars.splice(i,1); continue; }
+            // Столкновение
+            if (Math.abs(stars[i].x - rocket.x) < 25 && Math.abs(stars[i].y - rocket.y) < 25) {
+                stars.splice(i,1);
+                score++;
             }
         }
 
-        // Тучки
-        for (let i = clouds.length-1; i >= 0; i--) {
-            clouds[i].update(); clouds[i].draw();
-            if (clouds[i].y > H) { clouds.splice(i,1); continue; }
-            if (clouds[i].x > basket.x && clouds[i].x < basket.x+basket.w &&
-                clouds[i].y > basket.y && clouds[i].y < basket.y+basket.h) {
+        // Астероиды
+        for (let i = asteroids.length-1; i >= 0; i--) {
+            asteroids[i].update(); asteroids[i].draw();
+            if (asteroids[i].x < -30) { asteroids.splice(i,1); continue; }
+            // Столкновение
+            if (Math.abs(asteroids[i].x - rocket.x) < 25 && Math.abs(asteroids[i].y - rocket.y) < 25) {
                 endGame(false); return;
             }
         }
 
-        ctx.fillStyle = '#9c27b0'; ctx.font = 'bold 22px Arial';
-        ctx.fillText(`⭐ ${score}/${winScore}`, 15, 30);
+        // Очки
+        ctx.fillStyle = '#e94560'; ctx.font = 'bold 22px Arial';
+        ctx.fillText(`⭐ ${score}/${winScore}`, 15, 35);
 
         if (score >= winScore) { endGame(true); return; }
         requestAnimationFrame(gameLoop);
     }
 
-    // Управление пальцем
-    canvas.addEventListener('touchmove', e => {
-        e.preventDefault();
-        let touch = e.touches[0];
-        let rect = canvas.getBoundingClientRect();
-        let x = touch.clientX - rect.left;
-        if (basket && gameRunning) basket.x = Math.max(0, Math.min(W - basket.w, x - basket.w/2));
-    });
-    canvas.addEventListener('mousemove', e => {
-        let rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        if (basket && gameRunning) basket.x = Math.max(0, Math.min(W - basket.w, x - basket.w/2));
+    // Управление
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); if (rocket) rocket.flap(); });
+    canvas.addEventListener('mousedown', e => { e.preventDefault(); if (rocket) rocket.flap(); });
+    document.addEventListener('keydown', e => {
+        if (e.code === 'Space' && rocket) { e.preventDefault(); rocket.flap(); }
     });
 
     document.getElementById('startBtn').onclick = () => { startGame(); requestAnimationFrame(gameLoop); };
